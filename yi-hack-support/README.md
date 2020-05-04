@@ -1,47 +1,57 @@
 # yi-hack-support
-This is the supporting script for whom using hacked rom of Xiaomi Yi Smart camera
+This fork is a supporting script for whom using hacked rom of Xiaomi Yi Smart camera
 
-(https://github.com/fritz-smh/yi-hack)
+(https://github.com/TheCrypt0/yi-hack-v4)
 
 # How to use:
 ## upload_to_ftp.sh
 
-Copy `sd/test/scripts/upload_to_ftp.sh` to folder `test/scripts/` on SD card
+Copy `sd/scripts/upload_to_ftp.sh` to folder `scripts/` on SD card
 
-Open file `test/scripts/upload_to_ftp.sh` on SD card and change the FTP server configuration:
-```ftp_dir="/path/to/folder/on/ftp"
+Open file `scripts/upload_to_ftp.sh` on SD card and change the FTP server configuration:
+```
+ftp_dir="/path/to/folder/on/ftp"
 ftp_host="192.168.1.1"
 ftp_port="21"
 ftp_login="ftp_username"
 ftp_pass="ftp_password"
 ```
 
-Start the setup
+## Start the setup
 
 ```
-telnet <camera_ip>
+ssh root@<camera_ip>
 
-# /tmp/hd1/test/scripts/upload_to_ftp.sh setup
-[.OK.] Create mem file. Start upload videos of last 10 days
+# /tmp/sd/scripts/upload_to_ftp.sh setup
 [.OK.] Create Log dir
+[.OK.] Create mem file. Start upload videos of last 10 days
 [.OK.] Create PID file
-[.OK.] Create crontabs dir
-[.OK.] Create cron job
-[.OK.] Start crond daemon
-[WARN] Please add command "/usr/sbin/crond -b" into a line upper "led $(get_config LED_WHEN_READY)" in "/tmp/hd1/test/equip_test.sh" by yourself.
-[INFO] After above done, let use "upload_to_ftp.sh status"
+[....] Create cron job
+[INFO] Try to add the cron
+[INFO] After above done, let use "/tmp/sd/scripts/upload_to_ftp.sh status"
+[.OK.]
 ```
 
-Check the status
+## Check the status
 ```
-# /tmp/hd1/test/scripts/upload_to_ftp.sh status
+ssh root@<camera_ip>
+# /tmp/sd/scripts/upload_to_ftp.sh status
 [.OK.] Check mem file
 [.OK.] Check log directory
-[.OK.] Check crontabs directory
 [.OK.] Check crond daemon
 [.OK.] Check cron job existence
-[.OK.] Check cron job usability
 [.OK.] Check FTP server 192.168.1.1
 ```
 
-Add the command to start crond daemon into `/tmp/hd1/test/equip_test.sh` (above line `led $(get_config LED_WHEN_READY)`). This step helps to ensure that crond is started after camera rebooting.
+## Extra config
+This value in script can be edited to match the parent folder for cron.
+
+```
+yi_hack_dir="/home/yi-hack-v4/"
+```
+
+For the script the standard path for cron is:
+
+```
+$yi_hack_dir/etc/crontabs/root
+```

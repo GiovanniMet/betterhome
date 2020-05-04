@@ -1,9 +1,9 @@
 #!/bin/sh
 
-SCRIPT_DIR="/tmp/hd1/test/scripts"
+SCRIPT_DIR="/tmp/sd/scripts"
 
 # ----------------------------
-ftp_dir="/path/to/folder/on/ftp"
+ftp_dir="/video"
 ftp_host="192.168.1.something"
 ftp_port="21"
 ftp_login="ftp_username"
@@ -13,7 +13,8 @@ ftp_log_dir="$SCRIPT_DIR/ftp_upload/log"
 pid_file="$SCRIPT_DIR/ftp_upload/ftp_upload.pid"
 # ----------------------------
 
-record_dir="/tmp/hd1/record/"
+record_dir="/tmp/sd/record/"
+yi_hack_dir="/home/yi-hack-v4/"
 
 max_d01=31
 max_d02=28
@@ -36,8 +37,8 @@ is_server_live()
 
 is_pid_exist()
 {
-    count=$(ps | grep $1 | wc -l)
-    if [ $count -gt 1 ]; then
+    count=$(ps | grep $1 | awk 'END{printf ("%d\n", NR)}')
+    if [ $count -gt 2 ]; then
        return 0
     fi
     return 1
@@ -222,7 +223,7 @@ main()
          fi
          for file in $list_file; do
             #log $file
-            if [ $(echo $file | grep tmp | wc -l) -gt 0 ]; then
+            if [ $(echo $file | grep tmp | awk 'END{printf ("%d\n", NR)}') -gt 1 ]; then
                log "[SRC] Skip tmp file"
                continue
             fi
@@ -336,77 +337,18 @@ setup()
       fi
    fi
 
-   title="Create crontabs dir"
-   info_check "$title"
-   if [ -r "/var/spool/cron/crontabs" ]; then
-      info_ok
-   else
-      mkdir -p "/var/spool/cron/crontabs"
-      if [ $? -eq 0 ]; then
-         info_ok
-      else
-         info_fail "$title" "Cannot CREATE /var/spool/cron/crontabs"
-      fi
-   fi
-
    title="Create cron job"
    info_check "$title"
-   if [ ! -r "/var/spool/cron/crontabs/root" ]; then
-      # Empty crontab file
-      cat <<EOF > "/var/spool/cron/crontabs/root"
-# cat /var/spool/cron/crontabs/root
-# Edit this file to introduce tasks to be run by cron.
-#
-# Each task to run has to be defined through a single line
-# indicating with different fields when the task will be run
-# and what command to run for the task
-#
-# To define the time you can provide concrete values for
-# minute (m), hour (h), day of month (dom), month (mon),
-# and day of week (dow) or use '*' in these fields (for 'any').#
-# Notice that tasks will be started based on the cron's system
-# daemon's notion of time and timezones.
-#
-# Output of the crontab jobs (including errors) is sent through
-# email to the user the crontab file belongs to (unless redirected).
-#
-# For example, you can run a backup of all your user accounts
-# at 5 a.m every week with:
-# 0 5 * * 1 tar -zcf /var/backups/home.tgz /home/
-#
-# For more information see the manual pages of crontab(5) and cron(8)
-#
-# m h  dom mon dow   command
-
-EOF
-   fi
-
-   if [ $(crontab -l | grep -e "^#.*upload_to_ftp.sh" | wc -l) -lt 1 ] && [ $(crontab -l | grep "upload_to_ftp.sh" | wc -l) -gt 0 ]; then
+   if [ -r "$yi_hack_dir/etc/crontabs/root" ]; then
+      echo -e '\n[INFO] Try to add the cron'
+      echo "*/7 * * * * $SCRIPT_DIR/upload_to_ftp.sh >/dev/null 2>&1" >> $yi_hack_dir/etc/crontabs/root
+      echo -e '\n[INFO] After above done, let use "'$SCRIPT_DIR'/upload_to_ftp.sh status"'
       info_ok
    else
-      echo "*/7 * * * * $SCRIPT_DIR/upload_to_ftp.sh >/dev/null 2>&1" >> "/var/spool/cron/crontabs/root"
-      if [ $? -eq 0 ]; then
-         info_ok
-      else
-         info_fail "$title" "Cannot CREATE cron job. Please do yourself by crontab -e"
-      fi
+      echo -e '\n[WARN] Please add this to your cron:\n'
+      echo "*/7 * * * * $SCRIPT_DIR/upload_to_ftp.sh >/dev/null 2>&1"
+      echo -e '[INFO] After above done, let use "'$SCRIPT_DIR'/upload_to_ftp.sh status"'
    fi
-
-   title="Start crond daemon"
-   info_check "$title"
-   if [ $(ps | pgrep crond | wc -l) -gt 0 ]; then
-      info_ok
-   else
-      /usr/sbin/crond -b
-      if [ $? -eq 0 ]; then
-         info_ok
-      else
-         info_fail "$title" "Cannot start /usr/sbin/crond -b"
-      fi
-   fi
-
-   echo '[WARN] Please add command "/usr/sbin/crond -b" into a line upper "led $(get_config LED_WHEN_READY)" in "/tmp/hd1/test/equip_test.sh" by yourself.'
-   echo '[INFO] After above done, let use "upload_to_ftp.sh status"'
 
 }
 
@@ -428,17 +370,9 @@ check_status()
       info_fail "$title" "Cannot FIND $ftp_log_dir. Please mkdir -p $ftp_log_dir"
    fi
 
-   title="Check crontabs directory"
-   info_check "$title"
-   if [ -d "/var/spool/cron/crontabs" ]; then
-      info_ok
-   else
-      info_fail "$title" "crontabs NOT FOUND. Please: mkdir -p /var/spool/cron/crontabs"
-   fi
-
    title="Check crond daemon"
    info_check "$title"
-   if [ $(ps | pgrep crond | wc -l) -gt 0 ]; then
+   if [ $(ps | grep crond | awk 'END{printf ("%d\n", NR)}') -gt 1 ]; then
       info_ok
    else
       info_fail "$title" "crond daemon OFFLINE. Please: /usr/sbin/crond -b"
@@ -446,18 +380,10 @@ check_status()
 
    title="Check cron job existence"
    info_check "$title"
-   if [ $(crontab -l | grep upload_to_ftp.sh | wc -l) -gt 0 ]; then
+   if [ $(cat $yi_hack_dir/etc/crontabs/root | grep -c upload_to_ftp.sh) -gt 0 ]; then
       info_ok
    else
       info_fail "$title" "Cron job NOT FOUND. Please: crontab -e"
-   fi
-
-   title="Check cron job usability"
-   info_check "$title"
-   if [ $(crontab -l | grep -e "^#.*$SCRIPT_DIR/upload_to_ftp.sh" | wc -l) -lt 1 ]; then
-      info_ok
-   else
-      info_fail "$title" "Cron job DISABLED. Please: crontab -e and remove #"
    fi
 
    title="Check FTP server $ftp_host"
